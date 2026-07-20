@@ -35,7 +35,7 @@ class LLMService:
                     {"role": "user", "content": prompt}
                 ]
                 completion = client.chat.completions.create(
-                    model="llama3-8b-8192",
+                    model="llama-3.1-8b-instant",
                     messages=messages,
                     response_format=response_format,
                     temperature=0.3
