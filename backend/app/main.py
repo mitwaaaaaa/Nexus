@@ -20,7 +20,14 @@ logger = logging.getLogger(__name__)
 try:
     logger.info("Initializing database tables...")
     Base.metadata.create_all(bind=engine)
-    logger.info("Database tables initialized successfully.")
+    
+    # Run auto-migration alter commands to ensure new columns exist
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS extracted_text TEXT;"))
+        conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS extracted_chunks_json TEXT;"))
+    
+    logger.info("Database tables initialized and migrated successfully.")
 except Exception as e:
     logger.critical(f"Database initialization failed: {e}")
 
