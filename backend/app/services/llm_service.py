@@ -19,6 +19,30 @@ class LLMService:
     ) -> str:
         openai_key = user_openai_key or settings.OPENAI_API_KEY
         gemini_key = user_gemini_key or settings.GEMINI_API_KEY
+        groq_key = settings.GROQ_API_KEY
+
+        # 0. Try Groq (Fast Inference)
+        if groq_key and not groq_key.startswith("your_groq_key"):
+            try:
+                # Groq uses standard OpenAI SDK but with custom baseURL
+                client = OpenAI(
+                    api_key=groq_key,
+                    base_url="https://api.groq.com/openai/v1"
+                )
+                response_format = {"type": "json_object"} if json_output else None
+                messages = [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt}
+                ]
+                completion = client.chat.completions.create(
+                    model="llama3-8b-8192",
+                    messages=messages,
+                    response_format=response_format,
+                    temperature=0.3
+                )
+                return completion.choices[0].message.content
+            except Exception as e:
+                logger.error(f"Groq chat completion failed: {e}")
 
         # 1. Try OpenAI
         if openai_key and not openai_key.startswith("your_openai_key"):
@@ -43,13 +67,21 @@ class LLMService:
         if gemini_key and not gemini_key.startswith("your_gemini_key"):
             try:
                 genai.configure(api_key=gemini_key)
-                # Setting up Gemini model
-                model = genai.GenerativeModel(
-                    model_name="gemini-1.5-flash",
-                    system_instruction=system_instruction
-                )
-                generation_config = {"response_mime_type": "application/json"} if json_output else None
-                response = model.generate_content(prompt, generation_config=generation_config)
+                try:
+                    model = genai.GenerativeModel(
+                        model_name="gemini-1.5-flash",
+                        system_instruction=system_instruction
+                    )
+                    generation_config = {"response_mime_type": "application/json"} if json_output else None
+                    response = model.generate_content(prompt, generation_config=generation_config)
+                except TypeError:
+                    # Fallback for older google-generativeai SDK versions (< 0.5.0)
+                    model = genai.GenerativeModel(
+                        model_name="gemini-1.5-flash"
+                    )
+                    full_prompt = f"System Instruction: {system_instruction}\n\nUser Prompt: {prompt}"
+                    generation_config = {"response_mime_type": "application/json"} if json_output else None
+                    response = model.generate_content(full_prompt, generation_config=generation_config)
                 return response.text
             except Exception as e:
                 logger.error(f"Gemini chat completion failed: {e}")
