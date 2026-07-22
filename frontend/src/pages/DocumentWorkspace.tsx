@@ -458,17 +458,17 @@ const DocumentWorkspace: React.FC = () => {
     <div className="h-[calc(100vh-80px)] flex flex-col space-y-4">
       
       {/* Title & Back breadcrumbs */}
-      <div className="flex justify-between items-center bg-card border border-border p-3.5 rounded-2xl">
+      <div className="flex justify-between items-center bg-card border border-border/80 p-3 rounded-2xl shadow-sm">
         <div className="flex items-center space-x-3 min-w-0">
           <button 
             onClick={() => navigate('/workspace')}
-            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
+            className="p-1.5 rounded-lg hover:bg-accent/50 text-muted-foreground hover:text-foreground transition"
           >
             <ChevronLeft size={16} />
           </button>
           <div className="min-w-0">
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Document Workspace</span>
-            <h2 className="text-sm font-bold truncate leading-none mt-1">{docName}</h2>
+            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Document Workspace</span>
+            <h2 className="text-xs font-bold truncate leading-none mt-1">{docName}</h2>
           </div>
         </div>
 
@@ -485,28 +485,28 @@ const DocumentWorkspace: React.FC = () => {
       </div>
 
       {/* Split grid */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-5 min-h-0">
         
         {/* Left Side: Document Viewer */}
-        <div className="rounded-2xl border border-border bg-card flex flex-col overflow-hidden">
+        <div className="rounded-2xl border border-border/80 bg-card flex flex-col overflow-hidden shadow-sm">
           
           {/* Viewer Toolbar */}
-          <div className="p-3 border-b border-border bg-background/30 flex items-center justify-between flex-wrap gap-2">
+          <div className="p-3 border-b border-border bg-card flex items-center justify-between flex-wrap gap-2">
             
             {/* Page navigation */}
             <div className="flex items-center space-x-2">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                className="p-1 rounded-lg border border-border hover:bg-accent disabled:opacity-30 text-muted-foreground"
+                className="p-1 rounded-lg border border-border hover:bg-accent disabled:opacity-30 text-muted-foreground transition"
               >
                 <ChevronLeft size={14} />
               </button>
-              <span className="text-xs font-semibold">Page {currentPage} of {numPages}</span>
+              <span className="text-xs font-bold text-foreground">Page {currentPage} of {numPages}</span>
               <button
                 disabled={currentPage === numPages}
                 onClick={() => setCurrentPage(prev => Math.min(numPages, prev + 1))}
-                className="p-1 rounded-lg border border-border hover:bg-accent disabled:opacity-30 text-muted-foreground"
+                className="p-1 rounded-lg border border-border hover:bg-accent disabled:opacity-30 text-muted-foreground transition"
               >
                 <ChevronRight size={14} />
               </button>
@@ -514,13 +514,13 @@ const DocumentWorkspace: React.FC = () => {
 
             {/* In-doc search */}
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={11} />
               <input
                 type="text"
                 placeholder="Search in paper..."
                 value={viewerSearchQuery}
                 onChange={(e) => setViewerSearchQuery(e.target.value)}
-                className="pl-7 pr-3 py-1 rounded-lg bg-background border border-border/80 text-[11px] focus:outline-none focus:border-primary w-36"
+                className="pl-7 pr-3 py-1 rounded-lg bg-background border border-border/80 text-[11px] focus:outline-none focus:border-primary w-36 transition"
               />
               {viewerSearchMatches.length > 0 && (
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-primary">
@@ -530,16 +530,16 @@ const DocumentWorkspace: React.FC = () => {
             </div>
 
             {/* Quick Page AI Actions */}
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1.5">
               <button
                 onClick={() => handlePageAIAction('summarize')}
-                className="px-2 py-1 rounded bg-secondary text-[10px] font-semibold hover:bg-primary hover:text-white transition"
+                className="px-3 py-1 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground text-[10px] font-bold transition"
               >
                 Summarize Page
               </button>
               <button
                 onClick={() => handlePageAIAction('explain')}
-                className="px-2 py-1 rounded bg-secondary text-[10px] font-semibold hover:bg-primary hover:text-white transition"
+                className="px-3 py-1 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground text-[10px] font-bold transition"
               >
                 Explain Page
               </button>
@@ -548,7 +548,7 @@ const DocumentWorkspace: React.FC = () => {
           </div>
 
           {/* Viewer Pages panel container */}
-          <div className="flex-1 overflow-y-auto p-6 bg-secondary/20">
+          <div className="flex-1 overflow-y-auto p-6 bg-muted/40">
             {loadingDoc ? (
               <div className="h-full flex items-center justify-center">
                 <Loader2 size={36} className="animate-spin text-primary" />
@@ -559,7 +559,7 @@ const DocumentWorkspace: React.FC = () => {
                 <p>No readable text extracted on this page.<br/>Try triggering OCR or check if this page is blank.</p>
               </div>
             ) : (
-              <div className="bg-card border border-border p-8 rounded-xl shadow-premium min-h-[550px] flex flex-col justify-between relative select-text leading-relaxed">
+              <div className="bg-card border border-border/80 p-8 rounded-xl shadow-sm hover:shadow-md transition min-h-[550px] flex flex-col justify-between relative select-text leading-relaxed">
                 
                 {/* Search indicator */}
                 {viewerSearchQuery && !viewerSearchMatches.includes(currentPage) && (
@@ -585,10 +585,10 @@ const DocumentWorkspace: React.FC = () => {
         </div>
 
         {/* Right Side: Interactive AI Assistant tabs */}
-        <div className="rounded-2xl border border-border bg-card flex flex-col overflow-hidden min-h-0">
+        <div className="rounded-2xl border border-border/80 bg-card flex flex-col overflow-hidden min-h-0 shadow-sm">
           
           {/* Tab Selector Header */}
-          <div className="flex border-b border-border bg-background/40 p-1">
+          <div className="flex border-b border-border bg-card p-0">
             {[
               { id: 'chat', label: 'AI Chat', icon: MessageSquare },
               { id: 'smart', label: 'Smart Hub', icon: Sparkles },
@@ -597,17 +597,18 @@ const DocumentWorkspace: React.FC = () => {
               { id: 'bookmarks', label: 'Bookmarks', icon: BookMarked },
             ].map(t => {
               const Icon = t.icon;
+              const isSelected = activeTab === t.id;
               return (
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id as any)}
-                  className={`flex-1 flex items-center justify-center space-x-1.5 py-2 px-1 rounded-xl text-xs font-semibold transition ${
-                    activeTab === t.id 
-                      ? 'bg-card text-primary shadow-sm border border-border' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/30'
+                  className={`flex-1 flex items-center justify-center space-x-1.5 py-3 px-1 text-xs font-bold transition rounded-none border-b-2 ${
+                    isSelected 
+                      ? 'border-primary text-primary bg-primary/5' 
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/20'
                   }`}
                 >
-                  <Icon size={14} />
+                  <Icon size={13} />
                   <span className="hidden sm:inline">{t.label}</span>
                 </button>
               );
@@ -625,7 +626,7 @@ const DocumentWorkspace: React.FC = () => {
                 <div className="flex-1 space-y-4 overflow-y-auto pr-1 pb-4">
                   {messages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center space-y-4 text-xs text-muted-foreground py-16">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary glow-primary">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                         <MessageSquare size={20} />
                       </div>
                       <div className="space-y-1">
@@ -676,24 +677,26 @@ const DocumentWorkspace: React.FC = () => {
                 </div>
 
                 {/* Input block */}
-                <form onSubmit={handleSendQuery} className="border-t border-border pt-4 mt-2 flex items-center space-x-2.5">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ask AI: Explain equation, limitations, authors..."
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-background border border-border focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-xs"
-                  />
+                <form onSubmit={handleSendQuery} className="border-t border-border/40 pt-3 mt-2 flex items-center space-x-2 bg-card">
+                  <div className="flex-1 relative flex items-center bg-muted/40 rounded-full border border-border/65 px-3 py-1">
+                    <Sparkles size={13} className="text-muted-foreground/80 flex-shrink-0 mr-2" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ask Nexus about this document..."
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      className="flex-1 bg-transparent border-none py-1.5 focus:outline-none text-xs text-foreground placeholder-muted-foreground/75"
+                    />
+                  </div>
                   <button
                     type="submit"
                     disabled={sendingMsg || !chatInput.trim()}
-                    className="p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/95 transition disabled:opacity-40"
+                    className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition disabled:opacity-40 flex-shrink-0"
                   >
-                    <CornerDownLeft size={16} />
+                    <CornerDownLeft size={14} />
                   </button>
                 </form>
-
               </div>
             )}
 
@@ -753,16 +756,18 @@ const DocumentWorkspace: React.FC = () => {
                           <div className={`relative w-full h-full duration-500 [transform-style:preserve-3d] transition-transform ${flippedCards[i] ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             {/* Front Face (Question) */}
-                            <div className="absolute inset-0 w-full h-full bg-card border border-border rounded-xl p-4 flex flex-col justify-between [backface-visibility:hidden]">
-                              <span className="text-[9px] text-primary uppercase font-bold tracking-wider">Question</span>
-                              <p className="text-xs font-semibold text-foreground text-center my-auto px-2">{c.question}</p>
-                              <span className="text-[8px] text-muted-foreground text-center">Click to flip</span>
+                            <div className={`absolute inset-0 w-full h-full border rounded-xl p-4 flex flex-col justify-between [backface-visibility:hidden] ${
+                              i % 2 === 0 ? 'bg-[#E2F0F3] border-[#C9E5EC]' : 'bg-[#F8ECE8] border-[#ECDCD9]'
+                            }`}>
+                              <span className="text-[9px] text-[#3B6634] uppercase font-bold tracking-wider">Question</span>
+                              <p className="text-xs font-bold text-foreground text-center my-auto px-2">{c.question}</p>
+                              <span className="text-[8px] text-muted-foreground/80 text-center">Click to flip</span>
                             </div>
 
                             {/* Back Face (Answer) */}
-                            <div className="absolute inset-0 w-full h-full bg-primary/5 border border-primary/20 rounded-xl p-4 flex flex-col justify-between [transform:rotateY(180deg)] [backface-visibility:hidden]">
-                              <span className="text-[9px] text-green-500 uppercase font-bold tracking-wider">Answer</span>
-                              <p className="text-xs text-muted-foreground text-center my-auto leading-relaxed px-2">{c.answer}</p>
+                            <div className="absolute inset-0 w-full h-full bg-card border border-border rounded-xl p-4 flex flex-col justify-between [transform:rotateY(180deg)] [backface-visibility:hidden]">
+                              <span className="text-[9px] text-[#86A779] uppercase font-bold tracking-wider">Answer</span>
+                              <p className="text-xs text-muted-foreground text-center my-auto leading-relaxed px-2 font-medium">{c.answer}</p>
                               <span className="text-[8px] text-muted-foreground text-center">Click to flip back</span>
                             </div>
                             

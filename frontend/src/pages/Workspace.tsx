@@ -203,50 +203,120 @@ const Workspace: React.FC = () => {
   if (!activeWorkspace) return <div className="text-center p-8">Loading workspace...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl mx-auto">
       
-      {/* Search and Action Bar */}
+      {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Your Library</h1>
+          <p className="text-xs text-muted-foreground mt-1">A curated collection of your knowledge, organized for focused discovery and quiet reflection.</p>
+        </div>
         
-        {/* Search Input widget */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+        {/* Search Input */}
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
           <input
             type="text"
-            placeholder="Search documents instantly..."
+            placeholder="Search your library..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-card border border-border/80 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition text-sm text-foreground"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-card border border-border/80 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition text-xs text-foreground"
           />
         </div>
+      </div>
 
-        {/* Buttons: Folder and Upload */}
-        <div className="flex items-center space-x-3.5 self-end md:self-auto">
+      {/* Horizontal Filter Toolbar */}
+      <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-border">
+        <button
+          onClick={() => {
+            setSelectedFolderId(null);
+            setSelectedTag(null);
+            setFilterFavorites(false);
+          }}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+            selectedFolderId === null && selectedTag === null && !filterFavorites
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-card text-muted-foreground hover:text-foreground border border-border/80'
+          }`}
+        >
+          All Files
+        </button>
+
+        <button
+          onClick={() => setFilterFavorites(!filterFavorites)}
+          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center space-x-1.5 ${
+            filterFavorites
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-card text-muted-foreground hover:text-foreground border border-border/80'
+          }`}
+        >
+          <Star size={12} className={filterFavorites ? 'fill-primary-foreground text-primary-foreground border-none' : ''} />
+          <span>Favorites</span>
+        </button>
+
+        {/* Folder pills */}
+        {folders.map(f => (
           <button
-            onClick={handleCreateFolder}
-            className="flex items-center space-x-2 px-4 py-2.5 rounded-xl border border-border bg-card font-semibold hover:bg-accent/40 transition text-sm"
+            key={f.id}
+            onClick={() => setSelectedFolderId(f.id)}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+              selectedFolderId === f.id
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-card text-muted-foreground hover:text-foreground border border-border/80'
+            }`}
           >
-            <FolderPlus size={16} />
-            <span>New Folder</span>
+            {f.name}
           </button>
-          
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition shadow-lg shadow-primary/10 text-sm"
-          >
-            {uploading ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                <span>Uploading...</span>
-              </>
-            ) : (
-              <>
-                <Plus size={16} />
-                <span>Upload Document</span>
-              </>
-            )}
-          </button>
+        ))}
+
+        <div className="h-5 w-px bg-border/60 mx-1"></div>
+
+        {/* Folder Creator */}
+        <button
+          onClick={handleCreateFolder}
+          className="flex items-center space-x-1 px-3 py-1.5 rounded-full border border-dashed border-border hover:border-primary text-xs font-semibold text-primary transition"
+        >
+          <Plus size={12} />
+          <span>New Folder</span>
+        </button>
+      </div>
+
+      {/* Tag pills bar */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[9px] uppercase font-bold tracking-wider text-muted-foreground mr-1.5">Tags:</span>
+          {allTags.map(tag => (
+            <button
+              key={tag}
+              onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+              className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition flex items-center space-x-1 ${
+                selectedTag === tag
+                  ? 'bg-primary border-primary text-primary-foreground'
+                  : 'bg-card border-border hover:bg-accent text-muted-foreground'
+              }`}
+            >
+              <Tag size={8} />
+              <span>{tag}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Main Files Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        {/* Upload Card at the beginning */}
+        <div 
+          onClick={() => fileInputRef.current?.click()}
+          className="rounded-2xl border-2 border-dashed border-border/80 hover:border-primary/50 bg-card/40 hover:bg-card/80 transition p-6 flex flex-col items-center justify-center space-y-3 cursor-pointer min-h-[220px]"
+        >
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+            <Plus size={20} />
+          </div>
+          <div className="text-center">
+            <p className="text-xs font-bold text-foreground">Upload New Content</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Drag and drop or click to browse</p>
+          </div>
           <input
             type="file"
             ref={fileInputRef}
@@ -256,231 +326,120 @@ const Workspace: React.FC = () => {
           />
         </div>
 
-      </div>
-
-      {/* Grid splits into tags filters on left, documents on right */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* Sidebar filters */}
-        <div className="space-y-6 lg:col-span-1">
-          
-          {/* Folders grid block */}
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-3.5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Folders</h3>
-            <div className="space-y-1.5">
-              <button
-                onClick={() => setSelectedFolderId(null)}
-                className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-medium transition ${
-                  selectedFolderId === null ? 'bg-secondary text-primary font-bold' : 'hover:bg-accent/50 text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Folder size={14} />
-                <span>All Documents</span>
-              </button>
-              {folders.map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => setSelectedFolderId(f.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition ${
-                    selectedFolderId === f.id ? 'bg-secondary text-primary font-bold' : 'hover:bg-accent/50 text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5 min-w-0">
-                    <Folder size={14} className={selectedFolderId === f.id ? 'text-primary' : 'text-muted-foreground'} />
-                    <span className="truncate">{f.name}</span>
-                  </div>
-                  <ChevronRight size={12} className="text-muted-foreground flex-shrink-0" />
-                </button>
-              ))}
+        {/* Documents mapping */}
+        {loading ? (
+          [...Array(5)].map((_, i) => (
+            <div key={i} className="min-h-[220px] shimmer-bg rounded-2xl border border-border"></div>
+          ))
+        ) : filteredDocs.length === 0 ? (
+          <div className="col-span-1 md:col-span-2 lg:col-span-2 rounded-2xl border border-border bg-card p-6 flex flex-col items-center justify-center space-y-3 text-center min-h-[220px]">
+            <File size={36} className="text-muted/40" />
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-foreground">No matches found</p>
+              <p className="text-[10px] text-muted-foreground max-w-xs">No documents fit the selected filter settings. Click "All Files" to reset.</p>
             </div>
           </div>
+        ) : (
+          filteredDocs.map((doc) => {
+            // Generate a beautiful consistent color gradient cover depending on doc.id hash
+            const colors = [
+              ['from-[#E2D4C9] to-[#C9DFE2]', 'text-amber-800 bg-amber-500/10 border-amber-500/20'],
+              ['from-[#C9E2CC] to-[#D5C9E2]', 'text-green-800 bg-green-500/10 border-green-500/20'],
+              ['from-[#E2C9C9] to-[#C9DCE2]', 'text-red-800 bg-red-500/10 border-red-500/20'],
+              ['from-[#DFE2C9] to-[#C9CFE2]', 'text-teal-800 bg-teal-500/10 border-teal-500/20']
+            ];
+            const hash = doc.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+            const coverStyle = colors[hash % colors.length];
 
-          {/* Filtering sidebar options */}
-          <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filters</h3>
-            
-            {/* Favorites filter toggle */}
-            <button
-              onClick={() => setFilterFavorites(!filterFavorites)}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-medium transition ${
-                filterFavorites ? 'bg-amber-500/10 text-amber-500 font-bold border border-amber-500/20' : 'hover:bg-accent/50 text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Star size={14} className={filterFavorites ? 'fill-amber-500 text-amber-500' : ''} />
-              <span>Starred Favorites</span>
-            </button>
-
-            {/* Tag cloud listing */}
-            <div className="border-t border-border pt-4 space-y-2.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Filter by Tag</span>
-              {allTags.length === 0 ? (
-                <span className="text-xs text-muted-foreground block pl-3">No tags available.</span>
-              ) : (
-                <div className="flex flex-wrap gap-1.5 pl-1.5">
+            return (
+              <div 
+                key={doc.id} 
+                onClick={() => navigate(`/workspace/${activeWorkspace.id}/document/${doc.id}`)}
+                className="rounded-2xl border border-border/80 bg-card hover:border-primary/40 transition shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between overflow-hidden group min-h-[220px]"
+              >
+                {/* Visual Cover Header */}
+                <div className={`h-24 bg-gradient-to-br ${coverStyle[0]} relative flex items-center justify-center p-4 border-b border-border/30`}>
+                  <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition"></div>
+                  <div className="w-10 h-10 rounded-xl bg-white/95 shadow-sm border border-border/20 flex items-center justify-center text-primary font-bold uppercase text-[10px] z-10">
+                    {doc.file_type}
+                  </div>
                   <button
-                    onClick={() => setSelectedTag(null)}
-                    className={`px-2 py-1 rounded-full text-[10px] font-semibold border ${
-                      selectedTag === null 
-                        ? 'bg-primary border-primary text-white' 
-                        : 'border-border hover:bg-accent'
-                    }`}
+                    onClick={(e) => handleToggleFavorite(doc.id, e)}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/90 hover:bg-white border border-border/20 text-muted-foreground hover:text-foreground z-10 shadow-sm"
                   >
-                    Clear Tag
+                    <Star size={11} className={doc.is_favorite ? 'fill-amber-500 text-amber-500 border-none' : ''} />
                   </button>
-                  {allTags.map(tag => (
-                    <button
-                      key={tag}
-                      onClick={() => setSelectedTag(tag)}
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition flex items-center space-x-1 ${
-                        selectedTag === tag 
-                          ? 'bg-primary border-primary text-white' 
-                          : 'border-border hover:bg-accent text-muted-foreground'
-                      }`}
-                    >
-                      <Tag size={9} />
-                      <span>{tag}</span>
-                    </button>
-                  ))}
                 </div>
-              )}
-            </div>
 
-          </div>
-
-        </div>
-
-        {/* Documents listing block */}
-        <div className="lg:col-span-3 space-y-4">
-          
-          {/* Active filters summary */}
-          {(selectedFolderId || selectedTag || filterFavorites) && (
-            <div className="flex items-center space-x-2.5 text-xs text-muted-foreground pb-1">
-              <Filter size={12} />
-              <span>Active filters:</span>
-              {selectedFolderId && (
-                <span className="px-2 py-0.5 rounded bg-muted text-foreground">
-                  Folder: {folders.find(f => f.id === selectedFolderId)?.name}
-                </span>
-              )}
-              {selectedTag && <span className="px-2 py-0.5 rounded bg-muted text-foreground">Tag: {selectedTag}</span>}
-              {filterFavorites && <span className="px-2 py-0.5 rounded bg-muted text-foreground">Starred</span>}
-              <button 
-                onClick={() => {
-                  setSelectedFolderId(null);
-                  setSelectedTag(null);
-                  setFilterFavorites(false);
-                }}
-                className="text-primary hover:underline font-bold"
-              >
-                Clear all
-              </button>
-            </div>
-          )}
-
-          {/* List display */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {loading ? (
-              [...Array(4)].map((_, i) => (
-                <div key={i} className="h-44 shimmer-bg rounded-2xl border border-border"></div>
-              ))
-            ) : filteredDocs.length === 0 ? (
-              <div className="col-span-2 py-24 text-center rounded-2xl border border-border bg-card flex flex-col items-center justify-center space-y-4">
-                <File size={48} className="text-muted/30" />
-                <div className="space-y-1">
-                  <h3 className="font-bold text-lg">No documents found</h3>
-                  <p className="text-xs text-muted-foreground max-w-xs leading-normal">Try clearing filters, searching different keywords, or upload a research paper to get started.</p>
-                </div>
-              </div>
-            ) : (
-              filteredDocs.map((doc) => (
-                <div 
-                  key={doc.id} 
-                  onClick={() => navigate(`/workspace/${activeWorkspace.id}/document/${doc.id}`)}
-                  className="rounded-2xl border border-border bg-card p-5 flex flex-col justify-between space-y-5 hover:border-primary/45 transition shadow-sm hover:shadow-md cursor-pointer relative group"
-                >
-                  {/* Top line: file type & favorite */}
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center space-x-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary/10 to-indigo-500/10 border border-primary/20 flex items-center justify-center text-primary font-bold uppercase text-xs">
-                        {doc.file_type}
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-sm truncate leading-tight group-hover:text-primary transition">{doc.name}</h4>
-                        <span className="text-[10px] text-muted-foreground block mt-1">{formatBytes(doc.file_size)} • {new Date(doc.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={(e) => handleToggleFavorite(doc.id, e)}
-                      className="p-1.5 rounded-lg border border-border hover:bg-accent text-muted-foreground hover:text-foreground"
-                    >
-                      <Star size={14} className={doc.is_favorite ? 'fill-amber-500 text-amber-500 border-none' : ''} />
-                    </button>
+                {/* Info and tags */}
+                <div className="p-4 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-xs truncate leading-tight text-foreground group-hover:text-primary transition">{doc.name}</h4>
+                    <span className="text-[10px] text-muted-foreground block">{formatBytes(doc.file_size)} • {new Date(doc.created_at).toLocaleDateString()}</span>
                   </div>
 
-                  {/* Tags segment */}
+                  {/* Tags segments */}
                   <div className="flex flex-wrap gap-1">
                     {doc.tags.map(t => (
-                      <span key={t.id} className="px-2 py-0.5 rounded-md bg-secondary text-secondary-foreground text-[9px] font-semibold flex items-center space-x-0.5">
-                        <Tag size={8} />
+                      <span key={t.id} className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[8px] font-semibold flex items-center space-x-0.5">
+                        <Tag size={7} />
                         <span>{t.name}</span>
                       </span>
                     ))}
                     <button
                       onClick={(e) => handleAddTag(doc.id, e)}
-                      className="px-2 py-0.5 rounded-md border border-border border-dashed hover:bg-accent hover:border-solid text-[9px] font-bold text-primary transition"
+                      className="px-1.5 py-0.5 rounded border border-border border-dashed hover:bg-accent hover:border-solid text-[8px] font-bold text-primary transition"
                     >
-                      + Add Tag
+                      + tag
                     </button>
                   </div>
 
                   {/* Actions line: AI status & Operations */}
-                  <div className="flex items-center justify-between border-t border-border pt-4">
-                    {/* Status widget */}
+                  <div className="flex items-center justify-between border-t border-border/40 pt-3">
+                    {/* Status badge */}
                     <div className="flex items-center space-x-1.5">
-                      <span className={`w-2 h-2 rounded-full inline-block ${
-                        doc.ai_status === 'ready' ? 'bg-green-500' :
+                      <span className={`w-1.5 h-1.5 rounded-full inline-block ${
+                        doc.ai_status === 'ready' ? 'bg-primary' :
                         doc.ai_status === 'ingesting' ? 'bg-yellow-500 animate-pulse' :
                         doc.ai_status === 'failed' ? 'bg-red-500' :
                         'bg-muted'
                       }`}></span>
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">AI {doc.ai_status}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">AI {doc.ai_status}</span>
                     </div>
 
                     {/* Operations */}
-                    <div className="flex items-center space-x-1 opacity-80 group-hover:opacity-100 transition">
+                    <div className="flex items-center space-x-1 opacity-70 group-hover:opacity-100 transition">
                       <button
                         onClick={(e) => handleRenameDoc(doc, e)}
-                        className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
+                        className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
                         title="Rename"
                       >
-                        <Edit3 size={13} />
+                        <Edit3 size={11} />
                       </button>
                       <button
                         onClick={(e) => handleDownloadDoc(doc.id, doc.name, e)}
-                        className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
+                        className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
                         title="Download"
                       >
-                        <Download size={13} />
+                        <Download size={11} />
                       </button>
                       <button
                         onClick={(e) => handleDeleteDoc(doc.id, e)}
-                        className="p-2 rounded-lg hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                        className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
                         title="Delete"
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={11} />
                       </button>
                     </div>
                   </div>
-
                 </div>
-              ))
-            )}
-          </div>
 
-        </div>
-
+              </div>
+            );
+          })
+        )}
       </div>
+
     </div>
   );
 };

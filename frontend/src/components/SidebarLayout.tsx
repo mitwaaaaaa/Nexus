@@ -97,24 +97,24 @@ const SidebarLayout: React.FC = () => {
     <div className="flex h-screen overflow-hidden bg-background text-foreground transition-colors duration-300">
       
       {/* Sidebar Navigation */}
-      <aside className={`border-r border-border flex flex-col justify-between glass flex-shrink-0 z-10 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+      <aside className={`border-r border-border flex flex-col justify-between bg-muted flex-shrink-0 z-10 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
         <div className={`flex flex-col p-4 overflow-y-auto space-y-6 ${sidebarCollapsed ? 'items-center px-2' : ''}`}>
           
           {/* Logo Brand */}
           {!sidebarCollapsed ? (
             <div className="flex items-center justify-between w-full px-2 py-1">
               <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-purple-400 flex items-center justify-center text-white glow-primary flex-shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground flex-shrink-0">
                   <BrainCircuit size={20} />
                 </div>
                 <div>
-                  <h1 className="font-bold tracking-tight text-lg leading-none bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">Nexus</h1>
+                  <h1 className="font-bold tracking-tight text-lg leading-none text-primary">Nexus</h1>
                   <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">AI Workspace</span>
                 </div>
               </div>
               <button 
                 onClick={() => setSidebarCollapsed(true)}
-                className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition"
+                className="p-1 rounded-lg hover:bg-accent/40 text-muted-foreground hover:text-foreground transition"
                 title="Collapse Sidebar"
               >
                 <ChevronLeft size={16} />
@@ -122,12 +122,12 @@ const SidebarLayout: React.FC = () => {
             </div>
           ) : (
             <div className="flex flex-col items-center space-y-4 py-1">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-purple-400 flex items-center justify-center text-white glow-primary flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground flex-shrink-0">
                 <BrainCircuit size={20} />
               </div>
               <button 
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition"
+                className="p-1 rounded-lg hover:bg-accent/40 text-muted-foreground hover:text-foreground transition"
                 title="Expand Sidebar"
               >
                 <ChevronRight size={16} />
@@ -176,7 +176,7 @@ const SidebarLayout: React.FC = () => {
                 <div className="border-t border-border my-1"></div>
                 <button
                   onClick={handleCreateWorkspace}
-                  className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium text-primary hover:bg-accent transition"
+                  className="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-semibold text-primary hover:bg-accent transition"
                 >
                   <Plus size={14} />
                   <span>New Workspace</span>
@@ -198,10 +198,10 @@ const SidebarLayout: React.FC = () => {
                   key={item.name}
                   to={item.path}
                   title={item.name}
-                  className={`flex items-center rounded-xl text-sm font-medium transition ${
+                  className={`flex items-center rounded-xl text-sm font-semibold transition ${
                     isActive 
-                      ? 'bg-primary text-primary-foreground shadow-md' 
-                      : 'hover:bg-accent text-muted-foreground hover:text-foreground'
+                      ? 'bg-primary/10 text-primary border-r-4 border-primary rounded-r-none' 
+                      : 'hover:bg-accent/40 text-muted-foreground hover:text-foreground'
                   } ${sidebarCollapsed ? 'justify-center w-10 h-10 mx-auto' : 'space-x-3 px-3 py-2.5 w-full'}`}
                 >
                   <Icon size={18} className="flex-shrink-0" />
@@ -217,12 +217,12 @@ const SidebarLayout: React.FC = () => {
           
           {/* User Widget */}
           <div className={`flex items-center px-2 ${sidebarCollapsed ? 'justify-center px-0' : 'space-x-3'}`}>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-400 to-primary flex items-center justify-center font-bold text-white uppercase text-sm flex-shrink-0" title={user?.email}>
+            <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary uppercase text-sm flex-shrink-0" title={user?.email}>
               {user?.full_name ? user.full_name.substring(0, 2) : user?.email.substring(0, 2)}
             </div>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate leading-tight">{user?.full_name || 'Research User'}</p>
+                <p className="text-sm font-bold truncate leading-tight">{user?.full_name || 'Research User'}</p>
                 <p className="text-[11px] text-muted-foreground truncate">{user?.email}</p>
               </div>
             )}

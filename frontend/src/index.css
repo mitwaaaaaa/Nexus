@@ -4,65 +4,65 @@
 
 @layer base {
   :root {
-    --background: 233 45% 10%;
-    --foreground: 286 75% 96%;
+    --background: 36 25% 97%;
+    --foreground: 120 4% 15%;
     
-    --card: 233 40% 14%;
-    --card-foreground: 286 75% 96%;
+    --card: 0 0% 100%;
+    --card-foreground: 120 4% 15%;
     
-    --popover: 233 45% 10%;
-    --popover-foreground: 286 75% 96%;
+    --popover: 36 25% 97%;
+    --popover-foreground: 120 4% 15%;
     
-    --primary: 286 75% 81%;
-    --primary-foreground: 233 45% 10%;
+    --primary: 112 33% 30%;
+    --primary-foreground: 0 0% 100%;
     
-    --secondary: 263 37% 22%;
-    --secondary-foreground: 286 75% 96%;
+    --secondary: 103 23% 56%;
+    --secondary-foreground: 120 4% 15%;
     
-    --muted: 233 20% 20%;
-    --muted-foreground: 273 20% 70%;
+    --muted: 39 21% 92%;
+    --muted-foreground: 120 2% 42%;
     
-    --accent: 273 44% 24%;
-    --accent-foreground: 286 75% 96%;
+    --accent: 39 17% 86%;
+    --accent-foreground: 120 4% 15%;
+    
+    --destructive: 0 72% 35%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 39 17% 86%;
+    --input: 39 17% 86%;
+    --ring: 112 33% 30%;
+    
+    --radius: 0.875rem;
+  }
+
+  .dark {
+    --background: 120 6% 10%;
+    --foreground: 120 5% 90%;
+    
+    --card: 120 6% 13%;
+    --card-foreground: 120 5% 90%;
+    
+    --popover: 120 6% 10%;
+    --popover-foreground: 120 5% 90%;
+    
+    --primary: 103 23% 56%;
+    --primary-foreground: 120 6% 10%;
+    
+    --secondary: 112 33% 30%;
+    --secondary-foreground: 120 5% 90%;
+    
+    --muted: 120 6% 16%;
+    --muted-foreground: 120 3% 60%;
+    
+    --accent: 120 6% 18%;
+    --accent-foreground: 120 5% 90%;
     
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 233 30% 22%;
-    --input: 233 30% 22%;
-    --ring: 286 75% 81%;
-    
-    --radius: 0.75rem;
-  }
-
-  .light {
-    --background: 286 45% 97.5%;
-    --foreground: 233 50% 15%;
-    
-    --card: 0 0% 100%;
-    --card-foreground: 233 50% 15%;
-    
-    --popover: 0 0% 100%;
-    --popover-foreground: 233 50% 15%;
-    
-    --primary: 286 75% 52%;
-    --primary-foreground: 0 0% 100%;
-    
-    --secondary: 286 75% 92%;
-    --secondary-foreground: 233 50% 15%;
-    
-    --muted: 273 20% 92%;
-    --muted-foreground: 263 25% 40%;
-    
-    --accent: 273 44% 88%;
-    --accent-foreground: 233 50% 15%;
-    
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    
-    --border: 273 30% 86%;
-    --input: 273 30% 86%;
-    --ring: 286 75% 52%;
+    --border: 120 6% 18%;
+    --input: 120 6% 18%;
+    --ring: 103 23% 56%;
   }
 }
 
@@ -76,19 +76,18 @@
   }
 }
 
-/* Glassmorphism Styles */
 .glass {
-  background: rgba(30, 36, 76, 0.7);
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 173, 242, 0.12);
+  border: 1px solid rgba(59, 102, 52, 0.08);
 }
 
-.light .glass {
-  background: rgba(253, 248, 255, 0.75);
+.dark .glass {
+  background: rgba(20, 24, 20, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(101, 69, 151, 0.12);
+  border: 1px solid rgba(164, 198, 165, 0.08);
 }
 
 /* Scrollbar customization */
