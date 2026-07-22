@@ -104,9 +104,7 @@ const SidebarLayout: React.FC = () => {
           {!sidebarCollapsed ? (
             <div className="flex items-center justify-between w-full px-2 py-1">
               <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground flex-shrink-0">
-                  <BrainCircuit size={20} />
-                </div>
+                <img src="/logo.png" className="w-9 h-9 object-contain rounded-xl flex-shrink-0 bg-white" alt="Nexus Logo" />
                 <div>
                   <h1 className="font-bold tracking-tight text-lg leading-none text-primary">Nexus</h1>
                   <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">AI Workspace</span>
@@ -122,9 +120,7 @@ const SidebarLayout: React.FC = () => {
             </div>
           ) : (
             <div className="flex flex-col items-center space-y-4 py-1">
-              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground flex-shrink-0">
-                <BrainCircuit size={20} />
-              </div>
+              <img src="/logo.png" className="w-9 h-9 object-contain rounded-xl flex-shrink-0 bg-white" alt="Nexus Logo" />
               <button 
                 onClick={() => setSidebarCollapsed(false)}
                 className="p-1 rounded-lg hover:bg-accent/40 text-muted-foreground hover:text-foreground transition"

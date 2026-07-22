@@ -210,7 +210,7 @@ const DocumentWorkspace: React.FC = () => {
   useEffect(() => {
     if (!graphData) return;
 
-    // Inject main topic representing the document
+    // Inject main topic representing the document title
     const hasMainTopic = graphData.nodes.some(n => n.id === 'main_topic');
     let initNodes = [...graphData.nodes];
     if (!hasMainTopic) {
@@ -222,129 +222,165 @@ const DocumentWorkspace: React.FC = () => {
       });
     }
 
-    const positioned = initNodes.map((n, idx) => {
-      if (n.id === 'main_topic') {
-        return { ...n, x: 200, y: 200, vx: 0, vy: 0, size: 22, category: 'main' };
-      }
-      
-      const angle = (idx / initNodes.length) * 2 * Math.PI;
-      const isFirstLevel = idx < 6;
-      const radius = isFirstLevel ? 100 : 160;
+    const rootId = 'main_topic';
+    
+    // Compile edges list
+    const edges = [...graphData.edges];
+    if (!hasMainTopic) {
+      const firstFew = graphData.nodes.slice(0, 6);
+      firstFew.forEach(fn => {
+        edges.push({ source: 'main_topic', target: fn.id, label: 'parent' });
+      });
+    }
 
+    // Split topics (first level children of root) and subtopics (second level children of topics)
+    const topics = initNodes.filter(n => n.id !== rootId && edges.some(e => e.source === rootId && e.target === n.id));
+    const subtopics = initNodes.filter(n => n.id !== rootId && !topics.some(t => t.id === n.id));
+
+    // Distribute topics: half go to the right, half go to the left
+    const half = Math.ceil(topics.length / 2);
+    const rightTopics = topics.slice(0, half);
+    const leftTopics = topics.slice(half);
+
+    const nodesWithCoords: any[] = [];
+
+    // Helper to categorize node type
+    const getCategory = (n: any) => {
       let category: 'concepts' | 'algorithms' | 'datasets' | 'formulae' | 'examples' | 'misc' = 'concepts';
       const labelLower = n.label.toLowerCase();
       if (n.group === 2 || labelLower.includes('algorithm') || labelLower.includes('method') || labelLower.includes('sort') || labelLower.includes('search') || labelLower.includes('clustering') || labelLower.includes('sampling') || labelLower.includes('regression')) {
-        category = 'algorithms';
+        return 'algorithms';
       } else if (n.group === 3 || labelLower.includes('dataset') || labelLower.includes('data') || labelLower.includes('mnist') || labelLower.includes('corpus')) {
-        category = 'datasets';
+        return 'datasets';
       } else if (n.group === 4 || labelLower.includes('formula') || labelLower.includes('equation') || labelLower.includes('theorem') || labelLower.includes('math')) {
-        category = 'formulae';
+        return 'formulae';
       } else if (n.group === 5 || labelLower.includes('example') || labelLower.includes('sample') || labelLower.includes('case')) {
-        category = 'examples';
+        return 'examples';
       } else if (n.group === 1 || labelLower.includes('concept') || labelLower.includes('theory')) {
-        category = 'concepts';
-      } else {
-        category = 'misc';
+        return 'concepts';
       }
+      return 'misc';
+    };
 
-      return {
-        ...n,
-        x: 200 + radius * Math.cos(angle) + (Math.random() - 0.5) * 15,
-        y: 200 + radius * Math.sin(angle) + (Math.random() - 0.5) * 15,
-        vx: 0,
-        vy: 0,
-        size: isFirstLevel ? 14 : 9,
-        category
-      };
+    // 1. Add Main Topic (Root) in the center of the 400x400 space
+    nodesWithCoords.push({
+      id: rootId,
+      label: docName.length > 22 ? docName.substring(0, 20) + '...' : docName,
+      group: 0,
+      description: 'Main topic structure and entity graph of this document.',
+      x: 200,
+      y: 200,
+      vx: 0,
+      vy: 0,
+      size: 22,
+      category: 'main'
     });
 
-    simRef.current = positioned;
-    setSimNodes(positioned);
-    setSimAlpha(1.0);
+    // 2. Position Right Topics & their Subtopics
+    rightTopics.forEach((t, tIdx) => {
+      const ySpacing = rightTopics.length > 1 ? (300 / (rightTopics.length - 1)) : 0;
+      const tY = rightTopics.length > 1 ? 50 + tIdx * ySpacing : 200;
+      const tX = 300;
+
+      nodesWithCoords.push({
+        ...t,
+        x: tX,
+        y: tY,
+        vx: 0,
+        vy: 0,
+        size: 13,
+        category: getCategory(t)
+      });
+
+      const children = subtopics.filter(s => edges.some(e => e.source === t.id && e.target === s.id));
+      children.forEach((c, cIdx) => {
+        const childY = children.length > 1 
+          ? tY - 35 + (cIdx * (70 / (children.length - 1)))
+          : tY;
+        const childX = 380;
+
+        nodesWithCoords.push({
+          ...c,
+          x: childX,
+          y: childY,
+          vx: 0,
+          vy: 0,
+          size: 8,
+          category: getCategory(c)
+        });
+      });
+    });
+
+    // 3. Position Left Topics & their Subtopics
+    leftTopics.forEach((t, tIdx) => {
+      const ySpacing = leftTopics.length > 1 ? (300 / (leftTopics.length - 1)) : 0;
+      const tY = leftTopics.length > 1 ? 50 + tIdx * ySpacing : 200;
+      const tX = 100;
+
+      nodesWithCoords.push({
+        ...t,
+        x: tX,
+        y: tY,
+        vx: 0,
+        vy: 0,
+        size: 13,
+        category: getCategory(t)
+      });
+
+      const children = subtopics.filter(s => edges.some(e => e.source === t.id && e.target === s.id));
+      children.forEach((c, cIdx) => {
+        const childY = children.length > 1 
+          ? tY - 35 + (cIdx * (70 / (children.length - 1)))
+          : tY;
+        const childX = 20;
+
+        nodesWithCoords.push({
+          ...c,
+          x: childX,
+          y: childY,
+          vx: 0,
+          vy: 0,
+          size: 8,
+          category: getCategory(c)
+        });
+      });
+    });
+
+    // Position any residual isolated nodes at the bottom area
+    initNodes.forEach(n => {
+      if (!nodesWithCoords.some(nc => nc.id === n.id)) {
+        nodesWithCoords.push({
+          ...n,
+          x: 200 + (Math.random() - 0.5) * 120,
+          y: 360 + (Math.random() - 0.5) * 30,
+          vx: 0,
+          vy: 0,
+          size: 8,
+          category: getCategory(n)
+        });
+      }
+    });
+
+    simRef.current = nodesWithCoords;
+    setSimNodes(nodesWithCoords);
+    setSimAlpha(0); // set to 0 to bypass physics ticks and keep nodes completely steady
   }, [graphData, docName]);
 
+  // Keep a dummy simulation tick handler in case manual drag starts
   useEffect(() => {
     if (simNodes.length === 0 || simAlpha <= 0.005) return;
 
     let frameId: number;
     const tick = () => {
       const currentNodes = [...simRef.current];
-      const edges = graphData?.edges || [];
-      
-      const allEdges = [...edges];
-      const hasMainTopic = graphData?.nodes.some(n => n.id === 'main_topic');
-      if (!hasMainTopic) {
-        const firstFew = graphData?.nodes.slice(0, 6) || [];
-        firstFew.forEach(fn => {
-          allEdges.push({ source: 'main_topic', target: fn.id, label: 'parent' });
-        });
-      }
-
-      // Repulsion
-      for (let i = 0; i < currentNodes.length; i++) {
-        const n1 = currentNodes[i];
-        for (let j = i + 1; j < currentNodes.length; j++) {
-          const n2 = currentNodes[j];
-          const dx = n1.x - n2.x;
-          const dy = n1.y - n2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const minDist = n1.id === 'main_topic' || n2.id === 'main_topic' ? 100 : 70;
-          if (dist < minDist) {
-            const force = (minDist - dist) * 0.05 * simAlpha;
-            const fx = (dx / dist) * force;
-            const fy = (dy / dist) * force;
-            if (n1.id !== 'main_topic') { n1.vx += fx; n1.vy += fy; }
-            if (n2.id !== 'main_topic') { n2.vx -= fx; n2.vy -= fy; }
-          }
-        }
-      }
-
-      // Attraction
-      allEdges.forEach(edge => {
-        const n1 = currentNodes.find(n => n.id === edge.source);
-        const n2 = currentNodes.find(n => n.id === edge.target);
-        if (n1 && n2) {
-          const dx = n1.x - n2.x;
-          const dy = n1.y - n2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const desiredDist = n1.id === 'main_topic' || n2.id === 'main_topic' ? 120 : 80;
-          const force = (dist - desiredDist) * 0.03 * simAlpha;
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-          if (n1.id !== 'main_topic') { n1.vx -= fx; n1.vy -= fy; }
-          if (n2.id !== 'main_topic') { n2.vx += fx; n2.vy += fy; }
-        }
-      });
-
-      // Update positions
-      currentNodes.forEach(n => {
-        if (n.id === 'main_topic') {
-          n.x = 200;
-          n.y = 200;
-          return;
-        }
-
-        const dx = 200 - n.x;
-        const dy = 200 - n.y;
-        n.vx += dx * 0.003;
-        n.vy += dy * 0.003;
-
-        n.vx *= 0.85;
-        n.vy *= 0.85;
-
-        n.x += n.vx;
-        n.y += n.vy;
-      });
-
-      simRef.current = currentNodes;
-      setSimNodes([...currentNodes]);
-      setSimAlpha(prev => Math.max(0, prev - 0.005));
+      // Keep static positions fixed, only reduce alpha
+      setSimAlpha(prev => Math.max(0, prev - 0.05));
       frameId = requestAnimationFrame(tick);
     };
 
     frameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameId);
-  }, [simNodes, simAlpha, graphData]);
+  }, [simNodes, simAlpha]);
 
   // Actions
   const handleSendQuery = async (e: React.FormEvent) => {
