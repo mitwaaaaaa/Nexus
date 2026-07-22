@@ -577,11 +577,18 @@ class LLMService:
         user_gemini_key: Optional[str] = None
     ) -> Dict[str, Any]:
         prompt = (
-            f"Analyze the document text and extract the major concepts (entities, themes, ideas) and their relationships. "
+            f"You are a document outliner. Your task is to build a hierarchical mind map outline of the document text. "
+            f"Follow this pipeline:\n"
+            f"1. Identify the main document title (this will be the root node with id: 'main_topic').\n"
+            f"2. Detect the major sections and headings in the document. Merge any semantically similar headings.\n"
+            f"3. Select only the most important 8-15 topics to form the first-level branches of the tree.\n"
+            f"4. Under each first-level topic, extract only the most important 2-5 subtopics.\n"
+            f"5. Do NOT include implementation details, examples, code snippets, citations, or references.\n"
+            f"6. Generate a clean, strict hierarchical tree structure resembling a FreeMind outline. Every node (except the root) must have exactly one parent. Do not create cycles or cross-linkages.\n\n"
             f"Format the output strictly as a JSON object with two fields:\n"
-            f"- 'nodes': list of objects like {{'id': 'concept_id', 'label': 'Concept Name', 'group': 1}}\n"
-            f"- 'edges': list of objects like {{'source': 'concept_id_1', 'target': 'concept_id_2', 'label': 'relationship_type'}}\n\n"
-            f"Document Text:\n{document_text[:8000]}\n"
+            f"- 'nodes': list of objects like {{'id': 'topic_id', 'label': 'Topic Name', 'group': 1, 'description': 'Summary of this section'}}\n"
+            f"- 'edges': list of objects like {{'source': 'parent_id', 'target': 'child_id', 'label': 'level_relation'}}\n\n"
+            f"Document Text:\n{document_text[:24000]}\n"
         )
         
         res = cls._call_llm(

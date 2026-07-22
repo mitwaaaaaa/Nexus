@@ -196,7 +196,7 @@ def get_concept_graph(document_id: str, db: Session = Depends(get_db), current_u
         chunks = json.loads(doc.extracted_chunks_json)
     else:
         chunks, _ = IngestionService.process_document(doc.file_path, doc.file_type)
-    full_text = "\n".join([c["text"] for c in chunks[:12]])
+    full_text = "\n".join([c["text"] for c in chunks])
     
     graph = LLMService.generate_concept_graph(
         document_text=full_text,
