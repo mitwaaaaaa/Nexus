@@ -178,25 +178,25 @@ const DocumentWorkspace: React.FC = () => {
     setViewerSearchMatches(Array.from(new Set(matchingPages)));
   }, [viewerSearchQuery, chunks]);
 
-  // Load Concept Graph
+  // Load Concept Graph and Physics simulation
+  const [graphSearchQuery, setGraphSearchQuery] = useState('');
+  const [graphFilter, setGraphFilter] = useState<'all' | 'concepts' | 'algorithms' | 'datasets' | 'formulae' | 'examples'>('all');
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+
+  const [simNodes, setSimNodes] = useState<any[]>([]);
+  const simRef = useRef<any[]>([]);
+  const [simAlpha, setSimAlpha] = useState(1.0);
+
   useEffect(() => {
     if (activeTab === 'graph' && !graphData) {
       const fetchGraph = async () => {
         setLoadingGraph(true);
         try {
           const res = await api.get(`/api/features/concept-graph?document_id=${doc_id}`);
-          
-          // Compute simple layout positions for nodes to render in SVG
-          const nodes = res.data.nodes.map((n: GraphNode, idx: number) => {
-            const angle = (idx / res.data.nodes.length) * 2 * Math.PI;
-            return {
-              ...n,
-              // circular spacing
-              x: 180 + 120 * Math.cos(angle),
-              y: 180 + 120 * Math.sin(angle)
-            };
-          });
-          setGraphData({ nodes, edges: res.data.edges });
+          setGraphData(res.data);
         } catch (e) {
           console.error(e);
         } finally {
@@ -206,6 +206,145 @@ const DocumentWorkspace: React.FC = () => {
       fetchGraph();
     }
   }, [activeTab, doc_id, graphData]);
+
+  useEffect(() => {
+    if (!graphData) return;
+
+    // Inject main topic representing the document
+    const hasMainTopic = graphData.nodes.some(n => n.id === 'main_topic');
+    let initNodes = [...graphData.nodes];
+    if (!hasMainTopic) {
+      initNodes.unshift({
+        id: 'main_topic',
+        label: docName.length > 25 ? docName.substring(0, 25) + '...' : docName,
+        group: 0,
+        description: 'Main topic structure and entity graph of this document.'
+      });
+    }
+
+    const positioned = initNodes.map((n, idx) => {
+      if (n.id === 'main_topic') {
+        return { ...n, x: 200, y: 200, vx: 0, vy: 0, size: 22, category: 'main' };
+      }
+      
+      const angle = (idx / initNodes.length) * 2 * Math.PI;
+      const isFirstLevel = idx < 6;
+      const radius = isFirstLevel ? 100 : 160;
+
+      let category: 'concepts' | 'algorithms' | 'datasets' | 'formulae' | 'examples' | 'misc' = 'concepts';
+      const labelLower = n.label.toLowerCase();
+      if (n.group === 2 || labelLower.includes('algorithm') || labelLower.includes('method') || labelLower.includes('sort') || labelLower.includes('search') || labelLower.includes('clustering') || labelLower.includes('sampling') || labelLower.includes('regression')) {
+        category = 'algorithms';
+      } else if (n.group === 3 || labelLower.includes('dataset') || labelLower.includes('data') || labelLower.includes('mnist') || labelLower.includes('corpus')) {
+        category = 'datasets';
+      } else if (n.group === 4 || labelLower.includes('formula') || labelLower.includes('equation') || labelLower.includes('theorem') || labelLower.includes('math')) {
+        category = 'formulae';
+      } else if (n.group === 5 || labelLower.includes('example') || labelLower.includes('sample') || labelLower.includes('case')) {
+        category = 'examples';
+      } else if (n.group === 1 || labelLower.includes('concept') || labelLower.includes('theory')) {
+        category = 'concepts';
+      } else {
+        category = 'misc';
+      }
+
+      return {
+        ...n,
+        x: 200 + radius * Math.cos(angle) + (Math.random() - 0.5) * 15,
+        y: 200 + radius * Math.sin(angle) + (Math.random() - 0.5) * 15,
+        vx: 0,
+        vy: 0,
+        size: isFirstLevel ? 14 : 9,
+        category
+      };
+    });
+
+    simRef.current = positioned;
+    setSimNodes(positioned);
+    setSimAlpha(1.0);
+  }, [graphData, docName]);
+
+  useEffect(() => {
+    if (simNodes.length === 0 || simAlpha <= 0.005) return;
+
+    let frameId: number;
+    const tick = () => {
+      const currentNodes = [...simRef.current];
+      const edges = graphData?.edges || [];
+      
+      const allEdges = [...edges];
+      const hasMainTopic = graphData?.nodes.some(n => n.id === 'main_topic');
+      if (!hasMainTopic) {
+        const firstFew = graphData?.nodes.slice(0, 6) || [];
+        firstFew.forEach(fn => {
+          allEdges.push({ source: 'main_topic', target: fn.id, label: 'parent' });
+        });
+      }
+
+      // Repulsion
+      for (let i = 0; i < currentNodes.length; i++) {
+        const n1 = currentNodes[i];
+        for (let j = i + 1; j < currentNodes.length; j++) {
+          const n2 = currentNodes[j];
+          const dx = n1.x - n2.x;
+          const dy = n1.y - n2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const minDist = n1.id === 'main_topic' || n2.id === 'main_topic' ? 100 : 70;
+          if (dist < minDist) {
+            const force = (minDist - dist) * 0.05 * simAlpha;
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            if (n1.id !== 'main_topic') { n1.vx += fx; n1.vy += fy; }
+            if (n2.id !== 'main_topic') { n2.vx -= fx; n2.vy -= fy; }
+          }
+        }
+      }
+
+      // Attraction
+      allEdges.forEach(edge => {
+        const n1 = currentNodes.find(n => n.id === edge.source);
+        const n2 = currentNodes.find(n => n.id === edge.target);
+        if (n1 && n2) {
+          const dx = n1.x - n2.x;
+          const dy = n1.y - n2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const desiredDist = n1.id === 'main_topic' || n2.id === 'main_topic' ? 120 : 80;
+          const force = (dist - desiredDist) * 0.03 * simAlpha;
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+          if (n1.id !== 'main_topic') { n1.vx -= fx; n1.vy -= fy; }
+          if (n2.id !== 'main_topic') { n2.vx += fx; n2.vy += fy; }
+        }
+      });
+
+      // Update positions
+      currentNodes.forEach(n => {
+        if (n.id === 'main_topic') {
+          n.x = 200;
+          n.y = 200;
+          return;
+        }
+
+        const dx = 200 - n.x;
+        const dy = 200 - n.y;
+        n.vx += dx * 0.003;
+        n.vy += dy * 0.003;
+
+        n.vx *= 0.85;
+        n.vy *= 0.85;
+
+        n.x += n.vx;
+        n.y += n.vy;
+      });
+
+      simRef.current = currentNodes;
+      setSimNodes([...currentNodes]);
+      setSimAlpha(prev => Math.max(0, prev - 0.005));
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+  }, [simNodes, simAlpha, graphData]);
 
   // Actions
   const handleSendQuery = async (e: React.FormEvent) => {
@@ -855,10 +994,52 @@ const DocumentWorkspace: React.FC = () => {
 
             {/* Tab 3: Interactive SVG Concept Graph */}
             {activeTab === 'graph' && (
-              <div className="h-full flex flex-col justify-between min-h-[450px] space-y-4">
-                <div className="flex justify-between items-center pb-2 border-b border-border">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Document Concept Graph</h4>
-                  <span className="text-[10px] text-muted-foreground">Click nodes to inspect definitions</span>
+              <div className="h-full flex flex-col justify-between min-h-[480px] space-y-4">
+                
+                {/* Search & Filters Header */}
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row gap-2 justify-between sm:items-center">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Interactive Knowledge Graph</h4>
+                    
+                    {/* Graph search input */}
+                    <div className="relative w-full sm:w-56">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={12} />
+                      <input
+                        type="text"
+                        placeholder="Search node..."
+                        value={graphSearchQuery}
+                        onChange={(e) => setGraphSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1 bg-background border border-border/80 rounded-lg text-[11px] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Filter chips */}
+                  <div className="flex flex-wrap gap-1.5 pb-2 border-b border-border/40">
+                    {[
+                      { id: 'all', label: 'All' },
+                      { id: 'concepts', label: 'Concepts' },
+                      { id: 'algorithms', label: 'Algorithms' },
+                      { id: 'datasets', label: 'Datasets' },
+                      { id: 'formulae', label: 'Formulae' },
+                      { id: 'examples', label: 'Examples' }
+                    ].map(chip => (
+                      <button
+                        key={chip.id}
+                        onClick={() => {
+                          setGraphFilter(chip.id as any);
+                          setSimAlpha(0.5); // kick physics slightly to re-center
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition ${
+                          graphFilter === chip.id
+                            ? 'bg-primary border-primary text-primary-foreground'
+                            : 'bg-card border-border hover:bg-accent text-muted-foreground'
+                        }`}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {loadingGraph ? (
@@ -871,69 +1052,258 @@ const DocumentWorkspace: React.FC = () => {
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col justify-between space-y-4">
-                    {/* SVG RENDER */}
-                    <div className="aspect-square w-full max-w-[360px] mx-auto border border-border bg-background/50 rounded-xl overflow-hidden relative shadow-inner">
-                      <svg width="100%" height="100%" viewBox="0 0 360 360" className="cursor-grab select-none">
-                        {/* Render Links / Edges */}
-                        {graphData.edges.map((edge, i) => {
-                          const srcNode = graphData.nodes.find(n => n.id === edge.source);
-                          const tgtNode = graphData.nodes.find(n => n.id === edge.target);
-                          if (!srcNode || !tgtNode) return null;
-                          return (
-                            <g key={i}>
-                              <line
-                                x1={srcNode.x}
-                                y1={srcNode.y}
-                                x2={tgtNode.x}
-                                y2={tgtNode.y}
-                                stroke="hsl(var(--muted-foreground) / 0.3)"
-                                strokeWidth="1.5"
-                              />
-                            </g>
-                          );
-                        })}
+                    
+                    {/* SVG GRAPH RENDER */}
+                    <div 
+                      className="aspect-video w-full border border-border bg-card rounded-xl overflow-hidden relative shadow-inner select-none cursor-grab active:cursor-grabbing"
+                      onWheel={(e) => {
+                        // Mouse zoom
+                        const zoomFactor = e.deltaY < 0 ? 1.05 : 0.95;
+                        setZoom(prev => Math.min(3, Math.max(0.4, prev * zoomFactor)));
+                      }}
+                      onMouseDown={(e) => {
+                        // Panning init
+                        if (draggedNodeId) return;
+                        const startX = e.clientX - pan.x;
+                        const startY = e.clientY - pan.y;
+                        
+                        const handleMouseMove = (mvEvent: MouseEvent) => {
+                          setPan({
+                            x: mvEvent.clientX - startX,
+                            y: mvEvent.clientY - startY
+                          });
+                        };
+                        const handleMouseUp = () => {
+                          window.removeEventListener('mousemove', handleMouseMove);
+                          window.removeEventListener('mouseup', handleMouseUp);
+                        };
+                        window.addEventListener('mousemove', handleMouseMove);
+                        window.addEventListener('mouseup', handleMouseUp);
+                      }}
+                    >
+                      {/* Grid background */}
+                      <div className="absolute inset-0 pointer-events-none opacity-20 dark:opacity-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:20px_20px]" />
 
-                        {/* Render Nodes */}
-                        {graphData.nodes.map((node) => (
-                          <g 
-                            key={node.id} 
-                            transform={`translate(${node.x}, ${node.y})`}
-                            onClick={() => setSelectedGraphNode(node.id)}
-                            className="cursor-pointer"
-                          >
-                            <circle
-                              r="8"
-                              fill={selectedGraphNode === node.id ? "hsl(var(--primary))" : "hsl(var(--muted-foreground) / 0.5)"}
-                              stroke="hsl(var(--border))"
-                              strokeWidth="2"
-                              className="transition-all duration-300 hover:scale-125"
-                            />
-                            <text
-                              y="-12"
-                              textAnchor="middle"
-                              fill="currentColor"
-                              fontSize="8"
-                              fontWeight="bold"
-                              className="pointer-events-none"
-                            >
-                              {node.label}
-                            </text>
-                          </g>
-                        ))}
+                      <svg width="100%" height="100%" viewBox="0 0 400 400">
+                        
+                        {/* Pan/Zoom wrapper group */}
+                        <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
+                          
+                          {/* Edges layer */}
+                          {graphData.edges.map((edge, i) => {
+                            const srcNode = simNodes.find(n => n.id === edge.source) || (edge.source === 'main_topic' ? simNodes.find(n => n.id === 'main_topic') : null);
+                            const tgtNode = simNodes.find(n => n.id === edge.target);
+                            if (!srcNode || !tgtNode) return null;
+
+                            // Highlight neighborhood links
+                            const isSearchFiltered = 
+                              (graphSearchQuery && (!srcNode.label.toLowerCase().includes(graphSearchQuery.toLowerCase()) && !tgtNode.label.toLowerCase().includes(graphSearchQuery.toLowerCase()))) ||
+                              (graphFilter !== 'all' && srcNode.category !== graphFilter && tgtNode.category !== graphFilter);
+
+                            const isNeighbour = selectedGraphNode === srcNode.id || selectedGraphNode === tgtNode.id;
+                            const isHovered = hoveredNodeId === srcNode.id || hoveredNodeId === tgtNode.id;
+                            
+                            let linkOpacity = 0.25;
+                            let strokeWidth = srcNode.id === 'main_topic' ? 2 : 1;
+
+                            if (graphSearchQuery || graphFilter !== 'all') {
+                              linkOpacity = isSearchFiltered ? 0.05 : 0.4;
+                            } else if (selectedGraphNode) {
+                              linkOpacity = isNeighbour ? 0.8 : 0.05;
+                              if (isNeighbour) strokeWidth += 1;
+                            } else if (hoveredNodeId) {
+                              linkOpacity = isHovered ? 0.8 : 0.05;
+                              if (isHovered) strokeWidth += 1;
+                            }
+
+                            // Curved Bezier path calculation
+                            const dx = tgtNode.x - srcNode.x;
+                            const dy = tgtNode.y - srcNode.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                            const midX = (srcNode.x + tgtNode.x) / 2 + (dy / dist) * 15;
+                            const midY = (srcNode.y + tgtNode.y) / 2 - (dx / dist) * 15;
+                            const path = `M ${srcNode.x} ${srcNode.y} Q ${midX} ${midY} ${tgtNode.x} ${tgtNode.y}`;
+
+                            return (
+                              <path
+                                key={i}
+                                d={path}
+                                fill="transparent"
+                                stroke="hsl(var(--primary) / 0.5)"
+                                strokeWidth={strokeWidth}
+                                style={{ opacity: linkOpacity, transition: 'opacity 0.2s' }}
+                              />
+                            );
+                          })}
+
+                          {/* Nodes layer */}
+                          {simNodes.map((node) => {
+                            // Filter matches check
+                            const isSearchMatch = graphSearchQuery ? node.label.toLowerCase().includes(graphSearchQuery.toLowerCase()) : true;
+                            const isFilterMatch = graphFilter === 'all' ? true : node.category === graphFilter;
+                            const isDimmed = !isSearchMatch || !isFilterMatch;
+
+                            // Category color palette mapping
+                            const colors: Record<string, string> = {
+                              main: '#3b82f6', // blue
+                              concepts: '#10b981', // green
+                              algorithms: '#f59e0b', // orange
+                              datasets: '#8b5cf6', // purple
+                              formulae: '#f43f5e', // red
+                              examples: '#eab308', // yellow
+                              misc: '#9ca3af' // gray
+                            };
+                            const nodeColor = colors[node.category] || colors.concepts;
+
+                            // Connected highlight check
+                            const allEdges = [...graphData.edges];
+                            const firstFew = graphData?.nodes.slice(0, 6) || [];
+                            firstFew.forEach(fn => { allEdges.push({ source: 'main_topic', target: fn.id, label: 'parent' }); });
+
+                            const isConnected = selectedGraphNode ? (
+                              selectedGraphNode === node.id ||
+                              allEdges.some(e => (e.source === selectedGraphNode && e.target === node.id) || (e.target === selectedGraphNode && e.source === node.id))
+                            ) : true;
+
+                            const isHoverConnected = hoveredNodeId ? (
+                              hoveredNodeId === node.id ||
+                              allEdges.some(e => (e.source === hoveredNodeId && e.target === node.id) || (e.target === hoveredNodeId && e.source === node.id))
+                            ) : true;
+
+                            let nodeOpacity = 1;
+                            if (isDimmed) {
+                              nodeOpacity = 0.15;
+                            } else if (selectedGraphNode) {
+                              nodeOpacity = isConnected ? 1 : 0.2;
+                            } else if (hoveredNodeId) {
+                              nodeOpacity = isHoverConnected ? 1 : 0.2;
+                            }
+
+                            // Label short truncate
+                            const truncatedLabel = node.label.length > 12 ? node.label.substring(0, 10) + '...' : node.label;
+
+                            return (
+                              <g 
+                                key={node.id} 
+                                transform={`translate(${node.x}, ${node.y})`}
+                                className="cursor-pointer select-none"
+                                onMouseEnter={() => setHoveredNodeId(node.id)}
+                                onMouseLeave={() => setHoveredNodeId(null)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedGraphNode(node.id);
+                                }}
+                                onDoubleClick={() => {
+                                  // Double click: Zoom in and center on node coordinate
+                                  setZoom(1.6);
+                                  setPan({
+                                    x: 200 - node.x * 1.6,
+                                    y: 200 - node.y * 1.6
+                                  });
+                                }}
+                                onMouseDown={(e) => {
+                                  // Node drag init
+                                  e.stopPropagation();
+                                  setDraggedNodeId(node.id);
+                                  setSimAlpha(0.8); // reactivate physics slightly
+                                  
+                                  const handleNodeDrag = (mvEvent: MouseEvent) => {
+                                    // Translate page coordinate to local scale
+                                    const svgBox = e.currentTarget.parentElement?.getBoundingClientRect();
+                                    if (svgBox) {
+                                      const clientX = (mvEvent.clientX - svgBox.left - pan.x) / zoom;
+                                      const clientY = (mvEvent.clientY - svgBox.top - pan.y) / zoom;
+                                      
+                                      node.x = clientX;
+                                      node.y = clientY;
+                                      node.vx = 0;
+                                      node.vy = 0;
+                                      simRef.current = simRef.current.map(n => n.id === node.id ? node : n);
+                                    }
+                                  };
+                                  const handleDragEnd = () => {
+                                    window.removeEventListener('mousemove', handleNodeDrag);
+                                    window.removeEventListener('mouseup', handleDragEnd);
+                                    setDraggedNodeId(null);
+                                  };
+                                  window.addEventListener('mousemove', handleNodeDrag);
+                                  window.addEventListener('mouseup', handleDragEnd);
+                                }}
+                                style={{ opacity: nodeOpacity, transition: 'opacity 0.2s' }}
+                              >
+                                {/* Glow active background */}
+                                {selectedGraphNode === node.id && (
+                                  <circle r={node.size + 5} fill="transparent" stroke={nodeColor} strokeWidth="1.5" className="animate-ping" style={{ opacity: 0.4 }} />
+                                )}
+
+                                {/* Main Node Circle */}
+                                <circle
+                                  r={node.size}
+                                  fill={nodeColor}
+                                  stroke="#ffffff"
+                                  strokeWidth="1.5"
+                                  className="transition-transform duration-200 shadow-sm hover:scale-115"
+                                />
+
+                                {/* Node Title Text label */}
+                                <text
+                                  y={node.size + 11}
+                                  textAnchor="middle"
+                                  fill="currentColor"
+                                  fontSize={zoom < 0.75 ? "0" : "7.5"}
+                                  fontWeight={node.id === 'main_topic' ? 'bold' : '600'}
+                                  className="pointer-events-none text-[8px] bg-background px-1 border border-border"
+                                >
+                                  {truncatedLabel}
+                                </text>
+                              </g>
+                            );
+                          })}
+
+                        </g>
                       </svg>
+
+                      {/* Floating Graph Toolbar buttons */}
+                      <div className="absolute bottom-3 right-3 flex items-center space-x-1.5 z-10 bg-card/90 backdrop-blur border border-border/80 rounded-xl p-1 shadow-md">
+                        <button
+                          onClick={() => {
+                            setZoom(1);
+                            setPan({ x: 0, y: 0 });
+                          }}
+                          className="px-2 py-1 rounded-lg hover:bg-accent text-[9px] font-bold text-foreground transition"
+                          title="Reset center alignment"
+                        >
+                          Reset View
+                        </button>
+                        <button
+                          onClick={() => {
+                            setZoom(0.8);
+                            setPan({ x: 40, y: 40 });
+                          }}
+                          className="px-2 py-1 rounded-lg hover:bg-accent text-[9px] font-bold text-foreground transition"
+                          title="Resize fit to screen"
+                        >
+                          Fit Screen
+                        </button>
+                      </div>
                     </div>
 
                     {/* Selection info Card */}
                     {selectedGraphNode ? (
-                      <div className="p-3.5 rounded-lg border border-border bg-card text-xs space-y-1">
-                        <p className="font-bold text-primary">Concept: {graphData.nodes.find(n => n.id === selectedGraphNode)?.label}</p>
+                      <div className="p-3 rounded-xl border border-border bg-card text-xs space-y-1.5 shadow-sm">
+                        <div className="flex justify-between items-center">
+                          <p className="font-bold text-primary">Concept: {simNodes.find(n => n.id === selectedGraphNode)?.label}</p>
+                          <span className="px-2 py-0.5 rounded-full text-[8px] uppercase tracking-wider font-bold bg-muted text-muted-foreground">
+                            {simNodes.find(n => n.id === selectedGraphNode)?.category}
+                          </span>
+                        </div>
                         <p className="text-muted-foreground mt-0.5 leading-normal">
-                          {graphData.nodes.find(n => n.id === selectedGraphNode)?.description || 
-                           "This concept was extracted from the paper text as a primary subject key identifier."}
+                          {simNodes.find(n => n.id === selectedGraphNode)?.description || 
+                           "This topic or structural key identifier is mapped dynamically based on similarity models of the document text."}
                         </p>
                       </div>
                     ) : (
-                      <p className="text-center text-[10px] text-muted-foreground">Select a circular concept node inside the graph to review description.</p>
+                      <p className="text-center text-[10px] text-muted-foreground py-2 border border-dashed border-border/85 rounded-xl">Select a concept node to read its definition overview details.</p>
                     )}
                   </div>
                 )}
