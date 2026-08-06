@@ -16,6 +16,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUserKeys: (openaiKey: string, geminiKey: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  loginWithGoogle: (token: string) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -69,6 +70,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithGoogle = async (token: string) => {
+    setLoading(true);
+    try {
+      const res = await api.post('/api/auth/google', { token });
+      setUser(res.data.user);
+      localStorage.setItem('token', res.data.access_token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      return res.data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const register = async (email: string, password: string, fullName: string) => {
     setLoading(true);
     try {
@@ -112,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUserKeys, refreshProfile }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUserKeys, refreshProfile, loginWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );

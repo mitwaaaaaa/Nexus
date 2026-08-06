@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { BrainCircuit, Lock, Mail, AlertCircle } from 'lucide-react';
+import api from '../services/api';
 
 const Login: React.FC = () => {
-  const { login, user } = useAuth();
+  const { login, loginWithGoogle, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
 
   // If already logged in, redirect
   React.useEffect(() => {
@@ -17,6 +19,47 @@ const Login: React.FC = () => {
       navigate('/dashboard');
     }
   }, [user, navigate]);
+
+  // Fetch google client config
+  React.useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await api.get('/api/auth/config');
+        if (res.data.google_client_id) {
+          setGoogleClientId(res.data.google_client_id);
+        }
+      } catch (e) {
+        console.error("Failed to load auth config", e);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  const handleGoogleLoginSuccess = async (response: any) => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await loginWithGoogle(response.credential);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Google sign-in failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (googleClientId && (window as any).google) {
+      (window as any).google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleLoginSuccess,
+      });
+      (window as any).google.accounts.id.renderButton(
+        document.getElementById("google-signin-button"),
+        { theme: "outline", size: "large", width: "100%" }
+      );
+    }
+  }, [googleClientId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +147,18 @@ const Login: React.FC = () => {
             {submitting ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
+
+        {googleClientId && (
+          <>
+            <div className="relative my-6 flex items-center justify-center">
+              <span className="absolute w-full border-t border-border/50"></span>
+              <span className="relative bg-background/95 px-3 text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Or continue with</span>
+            </div>
+            <div className="w-full flex justify-center min-h-[44px]">
+              <div id="google-signin-button" className="w-full"></div>
+            </div>
+          </>
+        )}
 
         {/* Redirect Footer */}
         <div className="mt-8 border-t border-border/50 pt-5 text-center text-xs text-muted-foreground">

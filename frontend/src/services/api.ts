@@ -23,8 +23,13 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    // If unauthorized error and hasn't retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Do not attempt to refresh token for auth-specific requests (login, register, refresh)
+    const isAuthRequest = originalRequest.url?.includes('/api/auth/login') || 
+                          originalRequest.url?.includes('/api/auth/register') || 
+                          originalRequest.url?.includes('/api/auth/refresh');
+    
+    // If unauthorized error, hasn't retried yet, and is not an auth request
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
       originalRequest._retry = true;
       try {
         // Trigger Token Refresh

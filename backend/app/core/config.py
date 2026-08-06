@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GROQ_API_KEY: str = ""
     DEFAULT_LLM_MODEL: str = "gpt-4o-mini"
+    GOOGLE_CLIENT_ID: str = ""
     
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000"

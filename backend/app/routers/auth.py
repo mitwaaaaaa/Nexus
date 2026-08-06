@@ -3,6 +3,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from typing import Optional
+import httpx
+import uuid
 
 from app.core.database import get_db
 from app.core.security import (
@@ -11,7 +13,8 @@ from app.core.security import (
 )
 from app.core.config import settings
 from app.schemas.all_schemas import (
-    UserRegister, UserLogin, UserResponse, UserUpdate, Token, ForgotPassword, ResetPassword
+    UserRegister, UserLogin, UserResponse, UserUpdate, Token, ForgotPassword, ResetPassword,
+    GoogleLoginRequest
 )
 from app.repositories.all_repositories import UserRepository, ActivityRepository
 from app.models.all_models import User
@@ -186,3 +189,94 @@ def reset_password(form: ResetPassword, db: Session = Depends(get_db)):
 @router.post("/verify-email")
 def verify_email(db: Session = Depends(get_db)):
     return {"message": "Email verified successfully."}
+
+@router.get("/config")
+def get_auth_config():
+    return {
+        "google_client_id": settings.GOOGLE_CLIENT_ID
+    }
+
+@router.post("/google")
+async def google_login(response: Response, payload: GoogleLoginRequest, db: Session = Depends(get_db)):
+    id_token = payload.token
+    if not id_token:
+        raise HTTPException(status_code=400, detail="Google ID Token is missing.")
+        
+    # Verify the token via Google's tokeninfo endpoint
+    async with httpx.AsyncClient() as client:
+        try:
+            google_response = await client.get(
+                f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}",
+                timeout=10.0
+            )
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to reach Google token verification service: {e}")
+            
+    if google_response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid Google token.")
+        
+    google_data = google_response.json()
+    
+    # Verify aud (client ID) matches our GOOGLE_CLIENT_ID if it is set in settings
+    aud = google_data.get("aud")
+    if settings.GOOGLE_CLIENT_ID and aud != settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=401, detail="Token audience mismatch (client ID is incorrect).")
+        
+    email = google_data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not provided by Google.")
+        
+    # Check if user already exists
+    user = UserRepository.get_by_email(db, email)
+    if not user:
+        # Create user
+        name = google_data.get("name", email.split('@')[0])
+        # Generate random password since it is a required field
+        random_password = get_password_hash(str(uuid.uuid4()))
+        user = UserRepository.create(
+            db,
+            email=email,
+            hashed_password=random_password,
+            full_name=name
+        )
+        ActivityRepository.log(db, user.id, "register", f"User registered via Google: {user.email}")
+        
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="This account has been deactivated.")
+        
+    # Generate tokens
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
+    
+    is_prod = settings.ENVIRONMENT == "production"
+    response.set_cookie(
+        key="token",
+        value=access_token,
+        httponly=True,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        samesite="none" if is_prod else "lax",
+        secure=is_prod
+    )
+    
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        samesite="none" if is_prod else "lax",
+        secure=is_prod
+    )
+    
+    ActivityRepository.log(db, user.id, "login", "User logged in via Google successfully")
+    
+    return {
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_admin": user.is_admin
+        },
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }
+
