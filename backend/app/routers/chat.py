@@ -95,7 +95,9 @@ def send_message(
         query=msg_in.content,
         history=history_list,
         user_openai_key=current_user.openai_key,
-        user_gemini_key=current_user.gemini_key
+        user_gemini_key=current_user.gemini_key,
+        user_groq_key=current_user.groq_key,
+        db_session=db
     )
 
     # 4. Save Assistant response to database

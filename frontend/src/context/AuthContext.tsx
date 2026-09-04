@@ -14,7 +14,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<any>;
   register: (email: string, password: string, fullName: string) => Promise<any>;
   logout: () => Promise<void>;
-  updateUserKeys: (openaiKey: string, geminiKey: string) => Promise<void>;
+  updateUserKeys: (openaiKey: string, geminiKey: string, groqKey?: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
   loginWithGoogle: (token: string) => Promise<any>;
 }
@@ -107,8 +107,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateUserKeys = async (openaiKey: string, geminiKey: string) => {
-    const res = await api.put('/api/auth/me', { openai_key: openaiKey, gemini_key: geminiKey });
+  const updateUserKeys = async (openaiKey: string, geminiKey: string, groqKey?: string) => {
+    await api.put('/api/auth/me', { openai_key: openaiKey, gemini_key: geminiKey, groq_key: groqKey });
     // Update local user profile details if they changed
     await refreshProfile();
   };

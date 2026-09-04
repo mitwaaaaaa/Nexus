@@ -52,6 +52,8 @@ services:
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-openai/gpt-oss-20b}
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
       - ENVIRONMENT=development

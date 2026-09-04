@@ -26,6 +26,7 @@ try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS extracted_text TEXT;"))
         conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS extracted_chunks_json TEXT;"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS groq_key TEXT;"))
     
     logger.info("Database tables initialized and migrated successfully.")
 except Exception as e:

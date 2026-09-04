@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
     GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
     DEFAULT_LLM_MODEL: str = "gpt-4o-mini"
     GOOGLE_CLIENT_ID: str = ""
     

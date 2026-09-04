@@ -119,7 +119,8 @@ def ai_improve_note(
         prompt=prompt,
         system_instruction="You are a markdown editor. Return ONLY the updated markdown content without any surrounding explanations, intro, or triple backticks unless part of codeblocks.",
         user_openai_key=current_user.openai_key,
-        user_gemini_key=current_user.gemini_key
+        user_gemini_key=current_user.gemini_key,
+        user_groq_key=current_user.groq_key
     )
 
     updated = NoteRepository.update(db, note, {"content": improved_content})

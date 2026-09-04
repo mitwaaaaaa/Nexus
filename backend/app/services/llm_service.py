@@ -6,6 +6,12 @@ from app.services.vector_service import vector_service
 from openai import OpenAI
 import google.generativeai as genai
 
+try:
+    from groq import Groq
+    HAS_GROQ_SDK = True
+except ImportError:
+    HAS_GROQ_SDK = False
+
 logger = logging.getLogger(__name__)
 
 class LLMService:
@@ -15,37 +21,66 @@ class LLMService:
         system_instruction: str = "You are a helpful research assistant.", 
         user_openai_key: Optional[str] = None, 
         user_gemini_key: Optional[str] = None,
+        user_groq_key: Optional[str] = None,
         json_output: bool = False
     ) -> str:
         openai_key = user_openai_key or settings.OPENAI_API_KEY
         gemini_key = user_gemini_key or settings.GEMINI_API_KEY
-        groq_key = settings.GROQ_API_KEY
+        groq_key = user_groq_key or settings.GROQ_API_KEY
 
         # 0. Try Groq (Fast Inference)
         if groq_key and not groq_key.startswith("your_groq_key"):
+            configured_groq_model = getattr(settings, "GROQ_MODEL", "openai/gpt-oss-20b")
+            groq_models = [
+                configured_groq_model,
+                "openai/gpt-oss-20b",
+                "openai/gpt-oss-120b",
+                "groq/compound",
+                "groq/compound-mini",
+                "qwen/qwen3.8-27b",
+                "llama-3.3-70b-versatile",
+                "llama-3.1-8b-instant"
+            ]
+            seen_groq = set()
+            models_to_try = [m for m in groq_models if m and not (m in seen_groq or seen_groq.add(m))]
+            
             try:
-                # Groq uses standard OpenAI SDK but with custom baseURL
-                client = OpenAI(
-                    api_key=groq_key,
-                    base_url="https://api.groq.com/openai/v1"
-                )
+                # Use official Groq SDK if available, or fallback to OpenAI client with Groq baseURL
+                if HAS_GROQ_SDK:
+                    client = Groq(api_key=groq_key)
+                else:
+                    client = OpenAI(
+                        api_key=groq_key,
+                        base_url="https://api.groq.com/openai/v1"
+                    )
                 response_format = {"type": "json_object"} if json_output else None
                 messages = [
                     {"role": "system", "content": system_instruction},
                     {"role": "user", "content": prompt}
                 ]
-                completion = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=messages,
-                    response_format=response_format,
-                    temperature=0.3
-                )
-                return completion.choices[0].message.content
+                for candidate_model in models_to_try:
+                    try:
+                        completion = client.chat.completions.create(
+                            model=candidate_model,
+                            messages=messages,
+                            response_format=response_format,
+                            temperature=0.3
+                        )
+                        if completion.choices and completion.choices[0].message.content:
+                            return completion.choices[0].message.content
+                    except Exception as model_err:
+                        logger.warning(f"Groq chat completion failed with model '{candidate_model}': {model_err}")
             except Exception as e:
-                logger.error(f"Groq chat completion failed: {e}")
+                logger.error(f"Groq client initialization or call failed: {e}")
 
         # 1. Try OpenAI
         if openai_key and not openai_key.startswith("your_openai_key"):
+            openai_models = [
+                settings.DEFAULT_LLM_MODEL or "gpt-4o-mini",
+                "gpt-4o-mini",
+                "gpt-4o"
+            ]
+            seen_oai = set()
             try:
                 client = OpenAI(api_key=openai_key)
                 response_format = {"type": "json_object"} if json_output else None
@@ -53,48 +88,66 @@ class LLMService:
                     {"role": "system", "content": system_instruction},
                     {"role": "user", "content": prompt}
                 ]
-                completion = client.chat.completions.create(
-                    model=settings.DEFAULT_LLM_MODEL or "gpt-4o-mini",
-                    messages=messages,
-                    response_format=response_format,
-                    temperature=0.3
-                )
-                return completion.choices[0].message.content
+                for oai_model in [m for m in openai_models if m and not (m in seen_oai or seen_oai.add(m))]:
+                    try:
+                        completion = client.chat.completions.create(
+                            model=oai_model,
+                            messages=messages,
+                            response_format=response_format,
+                            temperature=0.3
+                        )
+                        if completion.choices and completion.choices[0].message.content:
+                            return completion.choices[0].message.content
+                    except Exception as model_err:
+                        logger.warning(f"OpenAI chat completion failed with model '{oai_model}': {model_err}")
             except Exception as e:
-                logger.error(f"OpenAI chat completion failed: {e}")
+                logger.error(f"OpenAI chat client failed: {e}")
 
         # 2. Try Gemini
         if gemini_key and not gemini_key.startswith("your_gemini_key"):
-            try:
-                genai.configure(api_key=gemini_key)
+            gemini_models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+            for g_model in gemini_models:
                 try:
-                    model = genai.GenerativeModel(
-                        model_name="gemini-1.5-flash",
-                        system_instruction=system_instruction
-                    )
-                    generation_config = {"response_mime_type": "application/json"} if json_output else None
-                    response = model.generate_content(prompt, generation_config=generation_config)
-                except TypeError:
-                    # Fallback for older google-generativeai SDK versions (< 0.5.0)
-                    model = genai.GenerativeModel(
-                        model_name="gemini-1.5-flash"
-                    )
-                    full_prompt = f"System Instruction: {system_instruction}\n\nUser Prompt: {prompt}"
-                    generation_config = {"response_mime_type": "application/json"} if json_output else None
-                    response = model.generate_content(full_prompt, generation_config=generation_config)
-                return response.text
-            except Exception as e:
-                logger.error(f"Gemini chat completion failed: {e}")
+                    genai.configure(api_key=gemini_key)
+                    try:
+                        model = genai.GenerativeModel(
+                            model_name=g_model,
+                            system_instruction=system_instruction
+                        )
+                        generation_config = {"response_mime_type": "application/json"} if json_output else None
+                        response = model.generate_content(prompt, generation_config=generation_config)
+                    except TypeError:
+                        model = genai.GenerativeModel(model_name=g_model)
+                        full_prompt = f"System Instruction: {system_instruction}\n\nUser Prompt: {prompt}"
+                        generation_config = {"response_mime_type": "application/json"} if json_output else None
+                        response = model.generate_content(full_prompt, generation_config=generation_config)
+                    if response and response.text:
+                        return response.text
+                except Exception as e:
+                    logger.warning(f"Gemini chat completion failed with model '{g_model}': {e}")
 
         # 3. Development Fallback Mock Answers
-        logger.warning("No active API Key found for LLM. Generating simulated response.")
+        logger.warning("No active API Key found or all LLM completions failed. Generating simulated response.")
         
+        import re
         # Heuristic analyzer to extract keywords and sentences from the prompt text
         doc_text = ""
         if "Document Text:\n" in prompt:
             doc_text = prompt.split("Document Text:\n")[1]
         elif "Document Text (Sample/Truncated):\n" in prompt:
             doc_text = prompt.split("Document Text (Sample/Truncated):\n")[1]
+        elif "Retrieved Context:\n" in prompt:
+            doc_text = prompt.split("Retrieved Context:\n")[1]
+            if "Conversation History:\n" in doc_text:
+                doc_text = doc_text.split("Conversation History:\n")[0]
+            # Strip chunk citation prefixes like [1] (Doc ID: ..., Page: 1):
+            doc_text = re.sub(r'\[\d+\]\s*\([^\)]*\):', '', doc_text)
+        elif "Original Markdown:\n" in prompt:
+            doc_text = prompt.split("Original Markdown:\n")[1].split("\n\nImproved Markdown Output:")[0]
+        elif ":\n\n" in prompt:
+            parts = prompt.split(":\n\n")
+            if len(parts) > 1:
+                doc_text = parts[1].split("\n\nTask:")[0]
             
         import re
         sentences = []
@@ -371,11 +424,17 @@ class LLMService:
         # Try to find a sentence in the document that contains words from the user query
         matched_sentences = []
         if user_query:
-            query_words = [w.lower().strip("?,.!") for w in user_query.split() if len(w) > 3]
+            query_words = [w.lower().strip("?,.!") for w in user_query.split() if len(w) > 2]
             for s in sentences:
                 for qw in query_words:
                     if qw in s.lower() and s not in matched_sentences:
                         matched_sentences.append(s)
+            
+            # If asking about author, name, who, whose, or identity:
+            if any(q in user_query.lower() for q in ["who", "whose", "name", "author", "candidate", "person", "owner"]) and doc_text:
+                candidate_names = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b', doc_text[:500])
+                if candidate_names:
+                    matched_sentences.insert(0, f"The primary name / candidate identified in this document is: {candidate_names[0]}.")
                         
         # Construct dynamic chat response
         chat_resp = f"### Simulated RAG Response (Local Fallback)\n\n"
@@ -399,7 +458,7 @@ class LLMService:
             
         chat_resp += (
             f"To chat dynamically and synthesize advanced summaries of this document, "
-            f"please add a valid OpenAI or Gemini API Key in your **Profile Settings**."
+            f"please add a valid Groq, OpenAI, or Gemini API Key in your **Profile Settings**."
         )
         return chat_resp
 
@@ -410,7 +469,9 @@ class LLMService:
         query: str, 
         history: List[Dict[str, str]] = [],
         user_openai_key: Optional[str] = None,
-        user_gemini_key: Optional[str] = None
+        user_gemini_key: Optional[str] = None,
+        user_groq_key: Optional[str] = None,
+        db_session: Optional[Any] = None
     ) -> Tuple[str, List[Dict[str, Any]]]:
         # 1. Similarity Search
         context_chunks = vector_service.query_similarity(
@@ -420,6 +481,34 @@ class LLMService:
             user_openai_key=user_openai_key,
             user_gemini_key=user_gemini_key
         )
+
+        # 1b. Fallback to DB if vector search yields no chunks (e.g. ChromaDB container reset)
+        if not context_chunks and db_session:
+            try:
+                from app.models.all_models import Document
+                import json
+                for doc_id in document_ids:
+                    doc = db_session.query(Document).filter(Document.id == doc_id).first()
+                    if doc:
+                        if doc.extracted_chunks_json:
+                            try:
+                                stored = json.loads(doc.extracted_chunks_json)
+                                for item in stored[:4]:
+                                    context_chunks.append({
+                                        "document_id": doc_id,
+                                        "text": item.get("text", ""),
+                                        "metadata": {"page": item.get("page", 1)}
+                                    })
+                            except Exception:
+                                pass
+                        if not context_chunks and doc.extracted_text:
+                            context_chunks.append({
+                                "document_id": doc_id,
+                                "text": doc.extracted_text[:3000],
+                                "metadata": {"page": 1}
+                            })
+            except Exception as e:
+                logger.warning(f"Fallback to DB chunks failed: {e}")
 
         citations = []
         context_str = ""
@@ -460,7 +549,8 @@ class LLMService:
             prompt=prompt,
             system_instruction="You are a professional research AI. Synthesize answers accurately using RAG context and cite facts with square bracket annotations.",
             user_openai_key=user_openai_key,
-            user_gemini_key=user_gemini_key
+            user_gemini_key=user_gemini_key,
+            user_groq_key=user_groq_key
         )
 
         return response_text, citations
@@ -471,7 +561,8 @@ class LLMService:
         document_text: str, 
         summary_type: str = "brief", # brief, detailed, notes, concepts
         user_openai_key: Optional[str] = None, 
-        user_gemini_key: Optional[str] = None
+        user_gemini_key: Optional[str] = None,
+        user_groq_key: Optional[str] = None
     ) -> str:
         instructions = {
             "brief": "Generate a concise 2-3 paragraph summary focusing on the main contributions and findings.",
@@ -489,7 +580,8 @@ class LLMService:
             prompt=prompt,
             system_instruction="You are a research summarization engine. Format your output clearly using clean markdown headings.",
             user_openai_key=user_openai_key,
-            user_gemini_key=user_gemini_key
+            user_gemini_key=user_gemini_key,
+            user_groq_key=user_groq_key
         )
 
     @classmethod
@@ -497,7 +589,8 @@ class LLMService:
         cls, 
         document_text: str, 
         user_openai_key: Optional[str] = None, 
-        user_gemini_key: Optional[str] = None
+        user_gemini_key: Optional[str] = None,
+        user_groq_key: Optional[str] = None
     ) -> List[Dict[str, str]]:
         prompt = (
             f"Analyze the following document text and generate a list of 5-8 flashcards for revision. "
@@ -511,6 +604,7 @@ class LLMService:
             system_instruction="You are a study card generation assistant. Output JSON only.",
             user_openai_key=user_openai_key,
             user_gemini_key=user_gemini_key,
+            user_groq_key=user_groq_key,
             json_output=True
         )
         
@@ -534,7 +628,8 @@ class LLMService:
         cls, 
         document_text: str, 
         user_openai_key: Optional[str] = None, 
-        user_gemini_key: Optional[str] = None
+        user_gemini_key: Optional[str] = None,
+        user_groq_key: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         prompt = (
             f"Analyze the following document text and generate a multiple-choice quiz of 5 questions. "
@@ -548,6 +643,7 @@ class LLMService:
             system_instruction="You are a quiz generation assistant. Output JSON only.",
             user_openai_key=user_openai_key,
             user_gemini_key=user_gemini_key,
+            user_groq_key=user_groq_key,
             json_output=True
         )
         
@@ -574,7 +670,8 @@ class LLMService:
         cls, 
         document_text: str, 
         user_openai_key: Optional[str] = None, 
-        user_gemini_key: Optional[str] = None
+        user_gemini_key: Optional[str] = None,
+        user_groq_key: Optional[str] = None
     ) -> Dict[str, Any]:
         prompt = (
             f"You are a document outliner. Your task is to build a hierarchical mind map outline of the document text. "
@@ -596,6 +693,7 @@ class LLMService:
             system_instruction="You are a concept mapping bot. Analyze relationships and output graph nodes and edges in clean JSON format.",
             user_openai_key=user_openai_key,
             user_gemini_key=user_gemini_key,
+            user_groq_key=user_groq_key,
             json_output=True
         )
         

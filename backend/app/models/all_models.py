@@ -30,6 +30,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     openai_key = Column(String, nullable=True)
     gemini_key = Column(String, nullable=True)
+    groq_key = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     

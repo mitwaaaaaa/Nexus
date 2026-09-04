@@ -30,6 +30,9 @@ class UserResponse(BaseModel):
     full_name: Optional[str] = None
     is_active: bool
     is_admin: bool
+    openai_key: Optional[str] = None
+    gemini_key: Optional[str] = None
+    groq_key: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -40,6 +43,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     openai_key: Optional[str] = None
     gemini_key: Optional[str] = None
+    groq_key: Optional[str] = None
 
 class ForgotPassword(BaseModel):
     email: EmailStr

@@ -54,7 +54,8 @@ def get_summary(req: SummaryRequest, db: Session = Depends(get_db), current_user
         document_text=full_text,
         summary_type=req.summary_type,
         user_openai_key=current_user.openai_key,
-        user_gemini_key=current_user.gemini_key
+        user_gemini_key=current_user.gemini_key,
+        user_groq_key=current_user.groq_key
     )
     
     ActivityRepository.log(db, current_user.id, "generate_summary", f"Generated {req.summary_type} summary for {doc.name}")
@@ -99,7 +100,8 @@ def page_ai_operation(req: PageAIRequest, db: Session = Depends(get_db), current
         prompt=prompt,
         system_instruction="You are an expert document tutor. Answer page-specific requests with high clarity.",
         user_openai_key=current_user.openai_key,
-        user_gemini_key=current_user.gemini_key
+        user_gemini_key=current_user.gemini_key,
+        user_groq_key=current_user.groq_key
     )
     
     ActivityRepository.log(db, current_user.id, "page_ai", f"Run Page AI {req.task_type} on page {req.page_number} of {doc.name}")
@@ -121,7 +123,8 @@ def generate_flashcards(req: FlashcardGenRequest, db: Session = Depends(get_db),
     cards_data = LLMService.generate_flashcards(
         document_text=full_text,
         user_openai_key=current_user.openai_key,
-        user_gemini_key=current_user.gemini_key
+        user_gemini_key=current_user.gemini_key,
+        user_groq_key=current_user.groq_key
     )
     
     created_cards = []
@@ -162,7 +165,8 @@ def generate_quiz(req: QuizGenRequest, db: Session = Depends(get_db), current_us
     quiz_questions = LLMService.generate_quiz(
         document_text=full_text,
         user_openai_key=current_user.openai_key,
-        user_gemini_key=current_user.gemini_key
+        user_gemini_key=current_user.gemini_key,
+        user_groq_key=current_user.groq_key
     )
     
     import uuid
@@ -201,7 +205,8 @@ def get_concept_graph(document_id: str, db: Session = Depends(get_db), current_u
     graph = LLMService.generate_concept_graph(
         document_text=full_text,
         user_openai_key=current_user.openai_key,
-        user_gemini_key=current_user.gemini_key
+        user_gemini_key=current_user.gemini_key,
+        user_groq_key=current_user.groq_key
     )
     return graph
 

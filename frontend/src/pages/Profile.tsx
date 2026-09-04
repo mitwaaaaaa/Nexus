@@ -8,6 +8,7 @@ const Profile: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const [openaiKey, setOpenaiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
+  const [groqKey, setGroqKey] = useState('');
   const [updating, setUpdating] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -19,6 +20,7 @@ const Profile: React.FC = () => {
         setFullName(res.data.full_name || '');
         setOpenaiKey(res.data.openai_key || '');
         setGeminiKey(res.data.gemini_key || '');
+        setGroqKey(res.data.groq_key || '');
       } catch (e) {
         console.error(e);
       }
@@ -31,13 +33,14 @@ const Profile: React.FC = () => {
     setUpdating(true);
     setSuccess(false);
     try {
-      // Save name
+      // Save name & keys
       await api.put('/api/auth/me', {
         full_name: fullName,
         openai_key: openaiKey,
-        gemini_key: geminiKey
+        gemini_key: geminiKey,
+        groq_key: groqKey
       });
-      await updateUserKeys(openaiKey, geminiKey);
+      await updateUserKeys(openaiKey, geminiKey, groqKey);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -129,6 +132,16 @@ const Profile: React.FC = () => {
                 placeholder="AIzaSy..."
                 value={geminiKey}
                 onChange={(e) => setGeminiKey(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:outline-none focus:border-primary text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Groq API Key (Optional — Fast Inference)</label>
+              <input
+                type="password"
+                placeholder="gsk_..."
+                value={groqKey}
+                onChange={(e) => setGroqKey(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl bg-background border border-border focus:outline-none focus:border-primary text-xs font-mono"
               />
             </div>
